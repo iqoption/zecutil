@@ -59,6 +59,7 @@ func RawTxInSignature(
 	return append(signature.Serialize(), byte(hashType)), nil
 }
 
+// SignTxOutput for sign zec transactions inputs
 func SignTxOutput(
 	chainParams *chaincfg.Params,
 	tx *MsgTx,
@@ -204,7 +205,10 @@ func blake2bSignatureHash(
 			b bytes.Buffer
 			h chainhash.Hash
 		)
-		wire.WriteTxOut(&b, 0, 0, tx.TxOut[idx])
+		if err = wire.WriteTxOut(&b, 0, 0, tx.TxOut[idx]); err != nil {
+			return nil, err
+		}
+
 		if h, err = blake2bHash(b.Bytes(), []byte(outputsHashPersonalization)); err != nil {
 			return nil, err
 		}
@@ -279,7 +283,6 @@ func sign(
 	sdb txscript.ScriptDB,
 	amt int64,
 ) ([]byte, txscript.ScriptClass, []btcutil.Address, int, error) {
-
 	class, addresses, nrequired, err := txscript.ExtractPkScriptAddrs(subScript, chainParams)
 	if err != nil {
 		return nil, txscript.NonStandardTy, nil, 0, err
@@ -356,6 +359,7 @@ func signMultiSig(
 	return script, signed == nRequired
 }
 
+// SignatureScript generate transaction hash and sign it
 func SignatureScript(
 	tx *MsgTx,
 	idx int,

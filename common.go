@@ -31,10 +31,6 @@ var (
 	// littleEndian is a convenience variable since binary.LittleEndian is
 	// quite long.
 	littleEndian = binary.LittleEndian
-
-	// bigEndian is a convenience variable since binary.BigEndian is quite
-	// long.
-	bigEndian = binary.BigEndian
 )
 
 // Borrow returns a byte slice from the free list with a length of 8.  A new

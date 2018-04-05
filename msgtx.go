@@ -21,7 +21,7 @@ type MsgTx struct {
 // fields.
 var witessMarkerBytes = []byte{0x00, 0x01}
 
-// BtcEncode encodes the receiver to w using the bitcoin protocol encoding.
+// ZecEncode encodes the receiver to w using the bitcoin protocol encoding.
 // This is part of the Message interface implementation.
 // See Serialize for encoding transactions to be stored to disk, such as in a
 // database, as opposed to encoding transactions for the wire.

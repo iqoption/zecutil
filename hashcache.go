@@ -4,16 +4,15 @@ import (
 	"bytes"
 	"encoding/binary"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
 )
 
 const (
-	prevoutsHashPersonalization   = "ZcashPrevoutHash"
-	sequenceHashPersonalization   = "ZcashSequencHash"
-	outputsHashPersonalization    = "ZcashOutputsHash"
-	joinsplitsHashPersonalization = "ZcashJSplitsHash"
+	prevoutsHashPersonalization = "ZcashPrevoutHash"
+	sequenceHashPersonalization = "ZcashSequencHash"
+	outputsHashPersonalization  = "ZcashOutputsHash"
 )
 
 // NewTxSigHashes computes, and returns the cached sighashes of the given
@@ -21,15 +20,9 @@ const (
 func NewTxSigHashes(tx *MsgTx) (h *txscript.TxSigHashes, err error) {
 	h = &txscript.TxSigHashes{}
 
-	//fmt.Printf("IN % x\n", tx.TxIn[0].PreviousOutPoint.Hash.CloneBytes())
-	//fmt.Printf("INDEX % x\n", tx.TxIn[0].PreviousOutPoint.Index)
-
 	if h.HashPrevOuts, err = calcHashPrevOuts(tx); err != nil {
 		return
 	}
-	//
-	//fmt.Printf("HashPrevOuts: % x\n", h.HashPrevOuts.CloneBytes())
-	//os.Exit(1)
 
 	if h.HashSequence, err = calcHashSequence(tx); err != nil {
 		return
@@ -88,10 +81,12 @@ func calcHashSequence(tx *MsgTx) (chainhash.Hash, error) {
 // when validating all inputs spending witness programs, which include
 // signatures using the SigHashAll sighash type. This allows computation to be
 // cached, reducing the total hashing complexity from O(N^2) to O(N).
-func calcHashOutputs(tx *MsgTx) (chainhash.Hash, error) {
+func calcHashOutputs(tx *MsgTx) (_ chainhash.Hash, err error) {
 	var b bytes.Buffer
 	for _, out := range tx.TxOut {
-		wire.WriteTxOut(&b, 0, 0, out)
+		if err = wire.WriteTxOut(&b, 0, 0, out); err != nil {
+			return chainhash.Hash{}, err
+		}
 	}
 
 	return blake2bHash(b.Bytes(), []byte(outputsHashPersonalization))

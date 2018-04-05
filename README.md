@@ -1,8 +1,6 @@
-## zecutil
+# zecutil
 
-Use `btgutil.SignTxOutput` like in `github.com/btcsuite/btcd/txscript`
-
-## Forked from [https://github.com/cpacia/bchutil/](https://github.com/cpacia/bchutil/)
+Support only [Overwinter](https://z.cash/upgrade/overwinter.html) network upgrade for Zcash. Not support joinsplits.
 
 ```go
 zecTx := &zecutil.MsgTx{
@@ -24,10 +22,10 @@ sigScript, err := zecutil.SignTxOutput(
     nil,
     amount,
 )
-
 if err != nil {
     return err
 }
+
 txIn.SignatureScript = sigScript
 
 var buf bytes.Buffer
@@ -38,3 +36,6 @@ if err = zecTx.BtcEncode(&buf, 0, wire.BaseEncoding); err != nil {
 fmt.Printf("Tx hex: %x\n", buf.Bytes())
 
 ```
+
+-------
+Forked from [https://github.com/cpacia/bchutil/](https://github.com/cpacia/bchutil/)
