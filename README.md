@@ -34,6 +34,7 @@ if err = zecTx.BtcEncode(&buf, 0, wire.BaseEncoding); err != nil {
 }
 
 fmt.Printf("Tx hex: %x\n", buf.Bytes())
+fmt.Printf("Tx Hash: %s\n", zecTx.TxHash().String())
 
 ```
 

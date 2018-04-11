@@ -18,7 +18,7 @@ import (
 const (
 	sigHashMask           = 0x1f
 	versionGroupID uint32 = 0x3C48270
-	version        uint32 = 3 | (1 << 31)
+	nVersion       uint32 = 3 | (1 << 31)
 	blake2BSigHash        = "ZcashSigHash"
 )
 
@@ -156,9 +156,9 @@ func blake2bSignatureHash(
 	var sigHash bytes.Buffer
 
 	// << GetHeader
-	// First write out, then encode the transaction's version number. Zcash current version = 3
+	// First write out, then encode the transaction's nVersion number. Zcash current nVersion = 3
 	var bVersion [4]byte
-	binary.LittleEndian.PutUint32(bVersion[:], version)
+	binary.LittleEndian.PutUint32(bVersion[:], nVersion)
 	sigHash.Write(bVersion[:])
 
 	// << nVersionGroupId

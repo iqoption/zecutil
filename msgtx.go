@@ -4,6 +4,8 @@ import (
 	"io"
 
 	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"bytes"
 )
 
 // MsgTx zec fork
@@ -21,12 +23,19 @@ type MsgTx struct {
 // fields.
 var witessMarkerBytes = []byte{0x00, 0x01}
 
+// TxHash generates the Hash for the transaction.
+func (msg *MsgTx) TxHash() chainhash.Hash {
+	var buf bytes.Buffer
+	msg.ZecEncode(&buf, 0, wire.BaseEncoding)
+	return chainhash.DoubleHashH(buf.Bytes())
+}
+
 // ZecEncode encodes the receiver to w using the bitcoin protocol encoding.
 // This is part of the Message interface implementation.
 // See Serialize for encoding transactions to be stored to disk, such as in a
 // database, as opposed to encoding transactions for the wire.
 func (msg *MsgTx) ZecEncode(w io.Writer, pver uint32, enc wire.MessageEncoding) error {
-	err := binarySerializer.PutUint32(w, littleEndian, version)
+	err := binarySerializer.PutUint32(w, littleEndian, nVersion)
 	if err != nil {
 		return err
 	}
@@ -36,7 +45,7 @@ func (msg *MsgTx) ZecEncode(w io.Writer, pver uint32, enc wire.MessageEncoding) 
 		return err
 	}
 
-	// If the encoding version is set to WitnessEncoding, and the Flags
+	// If the encoding nVersion is set to WitnessEncoding, and the Flags
 	// field for the MsgTx aren't 0x00, then this indicates the transaction
 	// is to be encoded using the new witness inclusionary structure
 	// defined in BIP0144.

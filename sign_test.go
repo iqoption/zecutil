@@ -111,3 +111,49 @@ func TestSign(t *testing.T) {
 		t.Fatal("incorrect sig")
 	}
 }
+
+func TestHash(t *testing.T) {
+	var (
+		err error
+		ph *chainhash.Hash
+	)
+
+	if ph, err = chainhash.NewHashFromStr(
+		"669f631ce20574fc33cd3e810bac941aff7b661e21ba4769e01bfd68509fc4e6",
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	var ss []byte
+	if ss, err = hex.DecodeString("4730440220307f094227b2e9b130ed9ee5fce75a043bb940681b204d11ca0c3c517f61f9f60220629e30a2f52e68e1ad6070be544bffc42bc439e7a8ea337f5974f6586222d69f012102da48746d58e04a4fb4ce381773cb6c8cedb71d009ebb740dea053c3e0f6cbf3c"); err != nil {
+		t.Fatal(err)
+	}
+
+	newTx := wire.NewMsgTx(3)
+	txIn := wire.NewTxIn(wire.NewOutPoint(ph, 1), ss, nil)
+	newTx.AddTxIn(txIn)
+
+	decoded := base58.Decode("tmHuu9Z7m5W7PcT4orLEANwnHKrB2aDfx5C")
+	var addr *btcutil.AddressPubKeyHash
+	if addr, err = btcutil.NewAddressPubKeyHash(decoded[2:len(decoded)-4], netParams); err != nil {
+		t.Fatal(err)
+	}
+
+	pa, err := txscript.PayToAddrScript(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	newTx.AddTxOut(wire.NewTxOut(299999742, pa))
+
+	zecTx := &MsgTx{
+		MsgTx:        newTx,
+		ExpiryHeight: 219152,
+	}
+
+
+	expected := "65282283bfbb131106932683d567c5b8de16bbb9186d22c5bb0d26c9e3fcb096"
+	if zecTx.TxHash().String() != expected {
+		t.Fatal("Incorrect hash", "expected", expected, "got", zecTx.TxHash().String())
+	}
+}
