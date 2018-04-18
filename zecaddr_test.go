@@ -19,7 +19,7 @@ func TestEncode(t *testing.T) {
 
 	var encodedAddr string
 	encodedAddr, err = Encode(wif.PrivKey.PubKey().SerializeCompressed(), &chaincfg.Params{
-		Name: "test",
+		Name: "testnet3",
 	})
 
 	if err != nil {
@@ -47,12 +47,12 @@ func TestDecode(t *testing.T) {
 	}
 
 	for _, addr := range addrs {
-		a, err := DecodeAddress(addr)
+		a, err := DecodeAddress(addr, "testnet3")
 		if err != nil {
 			t.Fatal("got err", "expected nil", "got", err)
 		}
 
-		if !a.IsForNet(&chaincfg.Params{Name: "test"}) {
+		if !a.IsForNet(&chaincfg.Params{Name: "testnet3"}) {
 			t.Fatal("incorrect net")
 		}
 

@@ -115,7 +115,7 @@ func TestSign(t *testing.T) {
 func TestHash(t *testing.T) {
 	var (
 		err error
-		ph *chainhash.Hash
+		ph  *chainhash.Hash
 	)
 
 	if ph, err = chainhash.NewHashFromStr(
@@ -150,7 +150,6 @@ func TestHash(t *testing.T) {
 		MsgTx:        newTx,
 		ExpiryHeight: 219152,
 	}
-
 
 	expected := "65282283bfbb131106932683d567c5b8de16bbb9186d22c5bb0d26c9e3fcb096"
 	if zecTx.TxHash().String() != expected {
