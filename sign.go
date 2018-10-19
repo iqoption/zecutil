@@ -255,8 +255,8 @@ func blake2bSignatureHash(
 
 	// << valueBalance
 	if versionEqual(uint32(tx.Version), nVersionSapling) {
-		var valueBalance [4]byte
-		binary.LittleEndian.PutUint32(nVersion[:], 0)
+		var valueBalance [8]byte
+		binary.LittleEndian.PutUint64(valueBalance[:], 0)
 		sigHash.Write(valueBalance[:])
 	}
 
