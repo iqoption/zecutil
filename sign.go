@@ -19,7 +19,7 @@ const (
 	sigHashMask                     = 0x1f
 	versionGroupIDOverwinter uint32 = 0x3C48270
 	nVersionOverwinter       uint32 = 3 | (1 << 31)
-	versionGroupIDSapling    uint32 = 0x3C48270
+	versionGroupIDSapling    uint32 = 0x892f2085
 	nVersionSapling          uint32 = 4 | (1 << 31)
 	blake2BSigHash                  = "ZcashSigHash"
 )
