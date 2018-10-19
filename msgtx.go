@@ -26,6 +26,7 @@ var witessMarkerBytes = []byte{0x00, 0x01}
 
 // TxHash generates the Hash for the transaction.
 func (msg *MsgTx) TxHash() chainhash.Hash {
+
 	var buf bytes.Buffer
 	msg.ZecEncode(&buf, 0, wire.BaseEncoding)
 	return chainhash.DoubleHashH(buf.Bytes())
@@ -115,7 +116,7 @@ func (msg *MsgTx) ZecEncode(w io.Writer, pver uint32, enc wire.MessageEncoding) 
 		return err
 	}
 
-	if msg.Version >= 4 {
+	if versionEqual(uint32(msg.Version), 4) {
 		// valueBalance
 		if err = binarySerializer.PutUint64(w, littleEndian, 0); err != nil {
 			return err
