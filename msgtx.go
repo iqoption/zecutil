@@ -35,15 +35,16 @@ func (msg *MsgTx) TxHash() chainhash.Hash {
 // This is part of the Message interface implementation.
 // See Serialize for encoding transactions to be stored to disk, such as in a
 // database, as opposed to encoding transactions for the wire.
+// msg.Version must be 3 or 4 and may or may not include the overwintered flag
 func (msg *MsgTx) ZecEncode(w io.Writer, pver uint32, enc wire.MessageEncoding) error {
 	err := binarySerializer.PutUint32(w, littleEndian, uint32(msg.Version)|(1<<31))
 	if err != nil {
 		return err
 	}
 
-	var versionGroupID uint32 = 0x3C48270
-	if msg.Version == 4 {
-		versionGroupID = 0x892F2085
+	var versionGroupID uint32 = versionGroupIDOverwinter
+	if versionEqual(uint32(msg.Version), nVersionSapling) {
+		versionGroupID = versionGroupIDSapling
 	}
 	err = binarySerializer.PutUint32(w, littleEndian, versionGroupID)
 	if err != nil {
