@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"bytes"
+
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 )
@@ -25,6 +26,7 @@ var witessMarkerBytes = []byte{0x00, 0x01}
 
 // TxHash generates the Hash for the transaction.
 func (msg *MsgTx) TxHash() chainhash.Hash {
+
 	var buf bytes.Buffer
 	msg.ZecEncode(&buf, 0, wire.BaseEncoding)
 	return chainhash.DoubleHashH(buf.Bytes())
@@ -34,12 +36,17 @@ func (msg *MsgTx) TxHash() chainhash.Hash {
 // This is part of the Message interface implementation.
 // See Serialize for encoding transactions to be stored to disk, such as in a
 // database, as opposed to encoding transactions for the wire.
+// msg.Version must be 3 or 4 and may or may not include the overwintered flag
 func (msg *MsgTx) ZecEncode(w io.Writer, pver uint32, enc wire.MessageEncoding) error {
-	err := binarySerializer.PutUint32(w, littleEndian, nVersion)
+	err := binarySerializer.PutUint32(w, littleEndian, uint32(msg.Version)|(1<<31))
 	if err != nil {
 		return err
 	}
 
+	var versionGroupID uint32 = versionGroupIDOverwinter
+	if versionEqual(uint32(msg.Version), nVersionSapling) {
+		versionGroupID = versionGroupIDSapling
+	}
 	err = binarySerializer.PutUint32(w, littleEndian, versionGroupID)
 	if err != nil {
 		return err
@@ -107,6 +114,24 @@ func (msg *MsgTx) ZecEncode(w io.Writer, pver uint32, enc wire.MessageEncoding) 
 
 	if err = binarySerializer.PutUint32(w, littleEndian, msg.ExpiryHeight); err != nil {
 		return err
+	}
+
+	if versionEqual(uint32(msg.Version), 4) {
+		// valueBalance
+		if err = binarySerializer.PutUint64(w, littleEndian, 0); err != nil {
+			return err
+		}
+		// nShieldedSpend
+		err = WriteVarInt(w, pver, 0)
+		if err != nil {
+			return err
+		}
+
+		// nShieldedOutput
+		err = WriteVarInt(w, pver, 0)
+		if err != nil {
+			return err
+		}
 	}
 	return WriteVarInt(w, pver, 0)
 }

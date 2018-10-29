@@ -43,6 +43,10 @@ type ZecAddressPubKeyHash struct {
 	prefix string
 }
 
+func NewAddressPubKeyHash(hash [ripemd160.Size]byte, prefix string) *ZecAddressPubKeyHash {
+	return &ZecAddressPubKeyHash{hash, prefix}
+}
+
 // Encode pubHash to zec address
 func Encode(pkHash []byte, net *chaincfg.Params) (_ string, err error) {
 	if _, ok := NetList[net.Name]; !ok {

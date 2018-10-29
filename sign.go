@@ -16,20 +16,28 @@ import (
 )
 
 const (
-	sigHashMask           = 0x1f
-	versionGroupID uint32 = 0x3C48270
-	nVersion       uint32 = 3 | (1 << 31)
-	blake2BSigHash        = "ZcashSigHash"
+	sigHashMask                     = 0x1f
+	versionGroupIDOverwinter uint32 = 0x3C48270
+	nVersionOverwinter       uint32 = 3 | (1 << 31)
+	versionGroupIDSapling    uint32 = 0x892f2085
+	nVersionSapling          uint32 = 4 | (1 << 31)
+	blake2BSigHash                  = "ZcashSigHash"
 )
+
+func versionEqual(v1, v2 uint32) bool {
+	return v1&0x7fffffff == v2&0x7fffffff
+}
 
 type upgradeParam struct {
 	activationHeight uint32
 	branchID         []byte
 }
 
+// https://github.com/zcash/zcash/blob/89f5ee5dec3fdfd70202baeaf74f09fa32bfb1a8/src/chainparams.cpp#L99
 var upgradeParams = []upgradeParam{
 	{0, []byte{0x00, 0x00, 0x00, 0x00}},
 	{207500, []byte{0x19, 0x1B, 0xA8, 0x5B}},
+	{419200, []byte{0xBB, 0x09, 0xB8, 0x76}},
 }
 
 // RawTxInSignature returns the serialized ECDSA signature for the input idx of
@@ -158,8 +166,13 @@ func blake2bSignatureHash(
 	// << GetHeader
 	// First write out, then encode the transaction's nVersion number. Zcash current nVersion = 3
 	var bVersion [4]byte
-	binary.LittleEndian.PutUint32(bVersion[:], nVersion)
+	binary.LittleEndian.PutUint32(bVersion[:], uint32(tx.Version)|(1<<31))
 	sigHash.Write(bVersion[:])
+
+	var versionGroupID uint32 = versionGroupIDOverwinter
+	if versionEqual(uint32(tx.Version), nVersionSapling) {
+		versionGroupID = versionGroupIDSapling
+	}
 
 	// << nVersionGroupId
 	// Version group ID
@@ -220,6 +233,16 @@ func blake2bSignatureHash(
 	// << hashJoinSplits
 	sigHash.Write(zeroHash[:])
 
+	// << hashShieldedSpends
+	if versionEqual(uint32(tx.Version), nVersionSapling) {
+		sigHash.Write(zeroHash[:])
+	}
+
+	// << hashShieldedOutputs
+	if versionEqual(uint32(tx.Version), nVersionSapling) {
+		sigHash.Write(zeroHash[:])
+	}
+
 	// << nLockTime
 	var lockTime [4]byte
 	binary.LittleEndian.PutUint32(lockTime[:], tx.LockTime)
@@ -229,6 +252,13 @@ func blake2bSignatureHash(
 	var expiryTime [4]byte
 	binary.LittleEndian.PutUint32(expiryTime[:], tx.ExpiryHeight)
 	sigHash.Write(expiryTime[:])
+
+	// << valueBalance
+	if versionEqual(uint32(tx.Version), nVersionSapling) {
+		var valueBalance [8]byte
+		binary.LittleEndian.PutUint64(valueBalance[:], 0)
+		sigHash.Write(valueBalance[:])
+	}
 
 	// << nHashType
 	var bHashType [4]byte
