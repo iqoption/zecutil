@@ -47,6 +47,10 @@ func NewAddressPubKeyHash(hash [ripemd160.Size]byte, prefix string) *ZecAddressP
 	return &ZecAddressPubKeyHash{hash, prefix}
 }
 
+func NewAddressScriptHash(hash [ripemd160.Size]byte, prefix string) *ZecAddressScriptHash {
+	return &ZecAddressScriptHash{hash, prefix}
+}
+
 // Encode pubHash to zec address
 func Encode(pkHash []byte, net *chaincfg.Params) (_ string, err error) {
 	if _, ok := NetList[net.Name]; !ok {
