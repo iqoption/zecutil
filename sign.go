@@ -15,29 +15,34 @@ import (
 	"github.com/btcsuite/btcutil"
 )
 
+type upgradeParam struct {
+	ActivationHeight uint32
+	BranchID         []byte
+}
+
 const (
-	sigHashMask                     = 0x1f
-	versionGroupIDOverwinter uint32 = 0x3C48270
-	nVersionOverwinter       uint32 = 3 | (1 << 31)
-	versionGroupIDSapling    uint32 = 0x892f2085
-	nVersionSapling          uint32 = 4 | (1 << 31)
-	blake2BSigHash                  = "ZcashSigHash"
+	sigHashMask    = 0x1f
+	blake2BSigHash = "ZcashSigHash"
 )
 
-func versionEqual(v1, v2 uint32) bool {
-	return v1&0x7fffffff == v2&0x7fffffff
-}
+const (
+	versionOverwinter int32 = 3
+	versionSapling          = 4
+)
 
-type upgradeParam struct {
-	activationHeight uint32
-	branchID         []byte
-}
+const (
+	versionOverwinterGroupID uint32 = 0x3C48270
+	versionSaplingGroupID           = 0x892f2085
+)
 
 // https://github.com/zcash/zcash/blob/89f5ee5dec3fdfd70202baeaf74f09fa32bfb1a8/src/chainparams.cpp#L99
+// https://github.com/zcash/zcash/blob/master/src/consensus/upgrades.cpp#L11
+// activation levels are used for testnet because mainnet is already updated
+// TODO: need implement own complete chain params and use them
 var upgradeParams = []upgradeParam{
 	{0, []byte{0x00, 0x00, 0x00, 0x00}},
 	{207500, []byte{0x19, 0x1B, 0xA8, 0x5B}},
-	{419200, []byte{0xBB, 0x09, 0xB8, 0x76}},
+	{280000, []byte{0xBB, 0x09, 0xB8, 0x76}},
 }
 
 // RawTxInSignature returns the serialized ECDSA signature for the input idx of
@@ -64,6 +69,7 @@ func RawTxInSignature(
 	if err != nil {
 		return nil, fmt.Errorf("cannot sign tx input: %s", err)
 	}
+
 	return append(signature.Serialize(), byte(hashType)), nil
 }
 
@@ -94,7 +100,7 @@ func SignTxOutput(
 	}
 
 	if class == txscript.ScriptHashTy {
-		// TODO keep the sub addressed and pass down to merge.
+		// TODO: keep the sub addressed and pass down to merge.
 		realSigScript, _, _, _, err := sign(
 			chainParams,
 			tx,
@@ -115,7 +121,7 @@ func SignTxOutput(
 		builder.AddData(sigScript)
 
 		sigScript, _ = builder.Script()
-		// TODO keep a copy of the script for merging.
+		// TODO: keep a copy of the script for merging.
 	}
 
 	// Merge scripts. with any previous data, if any.
@@ -137,11 +143,12 @@ func SignTxOutput(
 func sigHashKey(activationHeight uint32) []byte {
 	var i int
 	for i = len(upgradeParams) - 1; i >= 0; i-- {
-		if activationHeight >= upgradeParams[i].activationHeight {
+		if activationHeight >= upgradeParams[i].ActivationHeight {
 			break
 		}
 	}
-	return append([]byte(blake2BSigHash), upgradeParams[i].branchID...)
+
+	return append([]byte(blake2BSigHash), upgradeParams[i].BranchID...)
 }
 
 // blake2bSignatureHash
@@ -169,9 +176,9 @@ func blake2bSignatureHash(
 	binary.LittleEndian.PutUint32(bVersion[:], uint32(tx.Version)|(1<<31))
 	sigHash.Write(bVersion[:])
 
-	var versionGroupID uint32 = versionGroupIDOverwinter
-	if versionEqual(uint32(tx.Version), nVersionSapling) {
-		versionGroupID = versionGroupIDSapling
+	var versionGroupID = versionOverwinterGroupID
+	if tx.Version == versionSapling {
+		versionGroupID = versionSaplingGroupID
 	}
 
 	// << nVersionGroupId
@@ -234,12 +241,12 @@ func blake2bSignatureHash(
 	sigHash.Write(zeroHash[:])
 
 	// << hashShieldedSpends
-	if versionEqual(uint32(tx.Version), nVersionSapling) {
+	if tx.Version == versionSapling {
 		sigHash.Write(zeroHash[:])
 	}
 
 	// << hashShieldedOutputs
-	if versionEqual(uint32(tx.Version), nVersionSapling) {
+	if tx.Version == versionSapling {
 		sigHash.Write(zeroHash[:])
 	}
 
@@ -254,7 +261,7 @@ func blake2bSignatureHash(
 	sigHash.Write(expiryTime[:])
 
 	// << valueBalance
-	if versionEqual(uint32(tx.Version), nVersionSapling) {
+	if tx.Version == versionSapling {
 		var valueBalance [8]byte
 		binary.LittleEndian.PutUint64(valueBalance[:], 0)
 		sigHash.Write(valueBalance[:])
@@ -438,6 +445,7 @@ func mergeScripts(
 		if len(sigScript) > len(prevScript) {
 			return sigScript
 		}
+
 		return prevScript
 	}
 }
