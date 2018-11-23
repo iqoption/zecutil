@@ -1,6 +1,15 @@
 # zecutil
 
-Support only [Overwinter](https://z.cash/upgrade/overwinter.html) network upgrade for Zcash. Not support joinsplits.
+Zcash Utilities
+
+Contains the zcash signing algorithm and some protocol configuration. Forked from [https://github.com/cpacia/bchutil/](https://github.com/cpacia/bchutil/)
+
+## Supports
+
+* [Overwinter](https://z.cash/upgrade/overwinter.html) network upgrade for Zcash. Not support joinsplits.
+* [Sapling](https://z.cash/upgrade/sapling/) network upgrade for Zcash.
+
+## Example
 
 ```go
 zecTx := &zecutil.MsgTx{
@@ -37,6 +46,3 @@ fmt.Printf("Tx hex: %x\n", buf.Bytes())
 fmt.Printf("Tx Hash: %s\n", zecTx.TxHash().String())
 
 ```
-
--------
-Forked from [https://github.com/cpacia/bchutil/](https://github.com/cpacia/bchutil/)
