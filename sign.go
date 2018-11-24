@@ -435,7 +435,7 @@ func mergeScripts(
 ) []byte {
 	switch class {
 
-	// It doesn't actually make sense to merge anything other than multiig
+	// It doesn't actually make sense to merge anything other than multisig
 	// and scripthash (because it could contain multisig). Everything else
 	// has either zero signature, can't be spent, or has a single signature
 	// which is either present or not. The other two cases are handled

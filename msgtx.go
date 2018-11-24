@@ -15,7 +15,7 @@ type MsgTx struct {
 }
 
 // witnessMarkerBytes are a pair of bytes specific to the witness encoding. If
-// this sequence is encoutered, then it indicates a transaction has iwtness
+// this sequence is encountered, then it indicates a transaction has witness
 // data. The first byte is an always 0x00 marker byte, which allows decoders to
 // distinguish a serialized transaction with witnesses from a regular (legacy)
 // one. The second byte is the Flag field, which at the moment is always 0x01,
@@ -30,7 +30,7 @@ func (msg *MsgTx) TxHash() chainhash.Hash {
 	return chainhash.DoubleHashH(buf.Bytes())
 }
 
-// ZecEncode encodes the receiver to w using the bitcoin protocol encoding.
+// ZecEncode encodes the receiver to w using the Bitcoin protocol encoding.
 // This is part of the Message interface implementation.
 // See Serialize for encoding transactions to be stored to disk, such as in a
 // database, as opposed to encoding transactions for the wire.

@@ -5,7 +5,7 @@ import (
 	"github.com/codahale/blake2"
 )
 
-// blake2bHash zcash hash func
+// blake2bHash Zcash hash func
 func blake2bHash(data, key []byte) (h chainhash.Hash, err error) {
 	bHash := blake2.New(&blake2.Config{
 		Size:     32,

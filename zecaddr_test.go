@@ -36,7 +36,7 @@ func TestEncode(t *testing.T) {
 	})
 
 	if err == nil {
-		t.Fatal("incorect error, got nil")
+		t.Fatal("incorrect error, got nil")
 	}
 }
 
