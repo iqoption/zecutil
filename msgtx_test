@@ -1,0 +1,66 @@
+
+import (
+	"bytes"
+	"encoding/hex"
+	"strings"
+	"testing"
+
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/wire"
+)
+
+const rawTx = "030000807082c403011c15616e8b9a75ad4079a17bb296bcba8bda2712453baf1bde447bfe46be46e4010000006b48304502210093f8edae9784fee695d5ac5f84b4217084345a53c31c9e1e8e2a183ebe15cace02206872d90d0af77a4a4c18b761cf511e4583597ee5503e0e82e491da0f1a4377ed012103362327ee808f5961d26ef1a431386d6190638d67c14aa0e78e2eba1b58870cc0ffffffff02400d0300000000001976a9143b535da0ba90dad71ea005cccfe3cca47d746b3a88ac70d2dd11000000001976a914aefaebf9c83deba2ec76e080e2cec850dec161b188ac00000000ff47030000"
+
+func Test_ZecDeserialize_RoundTrip(t *testing.T) {
+	b, err := hex.DecodeString(rawTx)
+	if err != nil {
+		t.Fatalf("hex decode: %v", err)
+	}
+	mtx := &MsgTx{MsgTx: wire.NewMsgTx(3)}
+	if err := mtx.ZecDeserialize(bytes.NewReader(b)); err != nil {
+		t.Fatalf("ZecDeserialize: %v", err)
+	}
+
+	if got, want := len(mtx.TxIn), 1; got != want {
+		t.Fatalf("vin len = %d, want %d", got, want)
+	}
+	if got, want := len(mtx.TxOut), 2; got != want {
+		t.Fatalf("vout len = %d, want %d", got, want)
+	}
+	if got, want := mtx.LockTime, uint32(0); got != want {
+		t.Fatalf("locktime = %d, want %d", got, want)
+	}
+	if got, want := mtx.ExpiryHeight, uint32(215039); got != want {
+		t.Fatalf("expiryHeight = %d, want %d", got, want)
+	}
+
+	wantHashStr := "e446be46fe7b44de1baf3b451227da8bbabc96b27ba17940ad759a8b6e61151c"
+	wantHash, err := chainhash.NewHashFromStr(wantHashStr)
+	if err != nil {
+		t.Fatalf("chainhash parse: %v", err)
+	}
+	in := mtx.TxIn[0]
+	if in.PreviousOutPoint.Hash != *wantHash {
+		t.Fatalf("prevout hash = %s, want %s", in.PreviousOutPoint.Hash, wantHashStr)
+	}
+	if in.PreviousOutPoint.Index != 1 {
+		t.Fatalf("prevout index = %d, want 1", in.PreviousOutPoint.Index)
+	}
+
+	if mtx.TxOut[0].Value != 200000 {
+		t.Fatalf("vout0 value = %d, want 200000", mtx.TxOut[0].Value)
+	}
+	if mtx.TxOut[1].Value != 299750000 {
+		t.Fatalf("vout1 value = %d, want 299750000", mtx.TxOut[1].Value)
+	}
+
+	var buf bytes.Buffer
+	if err := mtx.ZecSerialize(&buf); err != nil {
+		t.Fatalf("ZecSerialize: %v", err)
+	}
+	gotHex := strings.ToLower(hex.EncodeToString(buf.Bytes()))
+	wantHex := strings.ToLower(rawTx)
+	if gotHex != wantHex {
+		t.Fatalf("round-trip mismatch:\n got:  %s\n want: %s", gotHex, wantHex)
+	}
+}
