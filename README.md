@@ -9,40 +9,22 @@ Contains the zcash signing algorithm and some protocol configuration. Forked fro
 * [Overwinter](https://z.cash/upgrade/overwinter.html) network upgrade for Zcash. Not support joinsplits.
 * [Sapling](https://z.cash/upgrade/sapling/) network upgrade for Zcash.
 
-## Example
+## How to use
+- First install the dependencies
 
-```go
-zecTx := &zecutil.MsgTx{
-    MsgTx:        newTx,
-    ExpiryHeight: 215039,
-}
-
-lookupKey := func(a btcutil.Address) (*btcec.PrivateKey, bool, error) {
-    return privKey, wif.CompressPubKey, nil
-}
-sigScript, err := zecutil.SignTxOutput(
-    &params,
-    zecTx,
-    i,
-    prevTxScript,
-    txscript.SigHashAll,
-    txscript.KeyClosure(lookupKey),
-    nil,
-    nil,
-    amount,
-)
-if err != nil {
-    return err
-}
-
-txIn.SignatureScript = sigScript
-
-var buf bytes.Buffer
-if err = zecTx.BtcEncode(&buf, 0, wire.BaseEncoding); err != nil {
-    return err
-}
-
-fmt.Printf("Tx hex: %x\n", buf.Bytes())
-fmt.Printf("Tx Hash: %s\n", zecTx.TxHash().String())
-
+```bash
+go get github.com/iqoption/zecutil
+go get github.com/btcsuite/btcd
+go get github.com/btcsuite/btcutil
 ```
+
+- Open [example.go](./example.go) and update your wallet details. You can use `http://zcashnetwork.info/api/addr/<your_address>/utxo` to get the list of UTXOs
+
+- Build and run the binary
+
+```bash
+go build example.go
+./example
+```
+
+- You can broadcast your transaction using [this form](http://zcashnetwork.info/tx/send)
