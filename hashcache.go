@@ -3,9 +3,7 @@ package zecutil
 import (
 	"bytes"
 	"encoding/binary"
-
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 )
 
@@ -15,10 +13,24 @@ const (
 	outputsHashPersonalization  = "ZcashOutputsHash"
 )
 
+// TxSigHashes houses the partial set of sighashes introduced within BIP0143.
+// This partial set of sighashes may be re-used within each input across a
+// transaction when validating all inputs. As a result, validation complexity
+// for SigHashAll can be reduced by a polynomial factor.
+type TxSigHashes struct {
+	HashPrevOuts chainhash.Hash
+	HashSequence chainhash.Hash
+	HashOutputs  chainhash.Hash
+}
+
 // NewTxSigHashes computes, and returns the cached sighashes of the given
 // transaction.
-func NewTxSigHashes(tx *MsgTx) (h *txscript.TxSigHashes, err error) {
-	h = &txscript.TxSigHashes{}
+func NewTxSigHashes(tx *MsgTx) (h *TxSigHashes, err error) {
+	h = &TxSigHashes{}
+
+	if h.HashPrevOuts, err = calcHashPrevOuts(tx); err != nil {
+		return
+	}
 
 	if h.HashPrevOuts, err = calcHashPrevOuts(tx); err != nil {
 		return

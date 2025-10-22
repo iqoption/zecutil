@@ -7,12 +7,13 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcutil"
 )
 
 type upgradeParam struct {
@@ -41,12 +42,13 @@ const (
 // TODO: need implement own complete chain params and use them
 var upgradeParams = []upgradeParam{
 	{0, []byte{0x00, 0x00, 0x00, 0x00}},
-	{207500, []byte{0x19, 0x1B, 0xA8, 0x5B}},
-	{280000, []byte{0xBB, 0x09, 0xB8, 0x76}},
-	{653600, []byte{0x60, 0x0E, 0xB4, 0x2B}},
-	{903000, []byte{0x0B, 0x23, 0xB9, 0xF5}},
-	{1046400, []byte{0xA6, 0x75, 0xFF, 0xE9}},
-	{1687104, []byte{0xB4, 0xD0, 0xD6, 0xC2}},
+	{207500, []byte{0x19, 0x1B, 0xA8, 0x5B}},  // Overwinter  0x5ba81b19
+	{280000, []byte{0xBB, 0x09, 0xB8, 0x76}},  // Sapling     0x76b809bb
+	{653600, []byte{0x60, 0x0E, 0xB4, 0x2B}},  // Blossom     0x2bb40e60
+	{903000, []byte{0x0B, 0x23, 0xB9, 0xF5}},  // Heartwood   0xf5b9230b
+	{1046400, []byte{0xA6, 0x75, 0xFF, 0xE9}}, // Canopy      0xe9ff75a6
+	{1687104, []byte{0xB4, 0xD0, 0xD6, 0xC2}}, // NU5         0xc2d6d0b4
+	{2726400, []byte{0x55, 0x10, 0xE7, 0xC8}}, // NU6         0xc8e71055
 }
 
 // RawTxInSignature returns the serialized ECDSA signature for the input idx of
@@ -59,20 +61,20 @@ func RawTxInSignature(
 	key *btcec.PrivateKey,
 	amt int64,
 ) (_ []byte, err error) {
-	var cache *txscript.TxSigHashes
+	var cache *TxSigHashes
 	if cache, err = NewTxSigHashes(tx); err != nil {
 		return nil, err
 	}
 
-	bHash, err := blake2bSignatureHash(subScript, cache, hashType, tx, idx, amt)
+	bHash, err := Blake2bSignatureHash(subScript, cache, hashType, tx, idx, amt)
 	if err != nil {
 		return nil, err
 	}
-
-	signature, err := key.Sign(bHash)
-	if err != nil {
-		return nil, fmt.Errorf("cannot sign tx input: %s", err)
-	}
+	signature := ecdsa.Sign(key, bHash)
+	//signature, err := key.Sign(bHash)
+	//if err != nil {
+	//	return nil, fmt.Errorf("cannot sign tx input: %s", err)
+	//}
 
 	return append(signature.Serialize(), byte(hashType)), nil
 }
@@ -155,10 +157,9 @@ func sigHashKey(activationHeight uint32) []byte {
 	return append([]byte(blake2BSigHash), upgradeParams[i].BranchID...)
 }
 
-// blake2bSignatureHash
-func blake2bSignatureHash(
+func Blake2bSignatureHash(
 	subScript []byte,
-	sigHashes *txscript.TxSigHashes,
+	sigHashes *TxSigHashes,
 	hashType txscript.SigHashType,
 	tx *MsgTx,
 	idx int,
@@ -167,7 +168,7 @@ func blake2bSignatureHash(
 	// As a sanity check, ensure the passed input index for the transaction
 	// is valid.
 	if idx > len(tx.TxIn)-1 {
-		return nil, fmt.Errorf("blake2bSignatureHash error: idx %d but %d txins", idx, len(tx.TxIn))
+		return nil, fmt.Errorf("Blake2bSignatureHash error: idx %d but %d txins", idx, len(tx.TxIn))
 	}
 
 	// We'll utilize this buffer throughout to incrementally calculate
@@ -414,8 +415,7 @@ func SignatureScript(
 	if err != nil {
 		return nil, err
 	}
-
-	pk := (*btcec.PublicKey)(&privKey.PublicKey)
+	pk := privKey.PubKey()
 	var pkData []byte
 	if compress {
 		pkData = pk.SerializeCompressed()

@@ -1,10 +1,10 @@
 package zecutil
 
 import (
+	"github.com/btcsuite/btcd/btcutil"
 	"testing"
 
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcutil"
 )
 
 func TestEncode(t *testing.T) {

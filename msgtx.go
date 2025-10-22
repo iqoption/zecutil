@@ -2,6 +2,9 @@ package zecutil
 
 import (
 	"bytes"
+	"encoding/binary"
+	"encoding/hex"
+	"fmt"
 	"io"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -191,4 +194,216 @@ func writeTxWitness(w io.Writer, pver uint32, version int32, wit [][]byte) error
 		}
 	}
 	return nil
+}
+
+func (msg *MsgTx) ZecSerialize(w io.Writer) error {
+	return msg.ZecEncode(w, 0, wire.BaseEncoding)
+}
+
+func (msg *MsgTx) ZecDeserialize(r io.Reader) error {
+	return msg.zecDecode(r, 0, wire.BaseEncoding)
+}
+
+func ZecTxFromHex(raw string) (*MsgTx, error) {
+	b, err := hex.DecodeString(raw)
+	if err != nil {
+		return nil, err
+	}
+	mtx := &MsgTx{MsgTx: wire.NewMsgTx(3)} // 版本会在解码时覆盖为 3 或 4
+	if err := mtx.ZecDeserialize(bytes.NewReader(b)); err != nil {
+		return nil, err
+	}
+	return mtx, nil
+}
+
+func (msg *MsgTx) ZecToHex() (string, error) {
+	var buf bytes.Buffer
+	if err := msg.ZecSerialize(&buf); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf.Bytes()), nil
+}
+
+func (msg *MsgTx) zecDecode(r io.Reader, _ uint32, enc wire.MessageEncoding) error {
+	var verWithFlag uint32
+	if err := binary.Read(r, binary.LittleEndian, &verWithFlag); err != nil {
+		return err
+	}
+	fOverwintered := (verWithFlag >> 31) == 1
+	msg.Version = int32(verWithFlag & 0x7fffffff)
+	if !fOverwintered {
+		return fmt.Errorf("not overwintered tx (expect v3/v4)")
+	}
+
+	var vgid uint32
+	if err := binary.Read(r, binary.LittleEndian, &vgid); err != nil {
+		return err
+	}
+	switch vgid {
+	case versionOverwinterGroupID:
+		msg.Version = versionOverwinter
+	case versionSaplingGroupID:
+		msg.Version = versionSapling
+	default:
+		return fmt.Errorf("unknown versionGroupID: 0x%x", vgid)
+	}
+
+	nIn, err := ReadVarInt(r, 0)
+	if err != nil {
+		return err
+	}
+	msg.TxIn = make([]*wire.TxIn, 0, nIn)
+	for i := uint64(0); i < nIn; i++ {
+		ti, err := readTxInZec(r)
+		if err != nil {
+			return err
+		}
+		msg.AddTxIn(ti)
+	}
+
+	nOut, err := ReadVarInt(r, 0)
+	if err != nil {
+		return err
+	}
+	msg.TxOut = make([]*wire.TxOut, 0, nOut)
+	for i := uint64(0); i < nOut; i++ {
+		to, err := readTxOutZec(r)
+		if err != nil {
+			return err
+		}
+		msg.AddTxOut(to)
+	}
+
+	if err := binary.Read(r, binary.LittleEndian, &msg.LockTime); err != nil {
+		return err
+	}
+	if err := binary.Read(r, binary.LittleEndian, &msg.ExpiryHeight); err != nil {
+		return err
+	}
+
+	if msg.Version == versionSapling {
+		var vb uint64
+		if err := binary.Read(r, binary.LittleEndian, &vb); err != nil {
+			return err
+		}
+		ns, err := ReadVarInt(r, 0)
+		if err != nil {
+			return err
+		}
+		no, err := ReadVarInt(r, 0)
+		if err != nil {
+			return err
+		}
+		if ns != 0 || no != 0 {
+			return fmt.Errorf("non-transparent sapling fields present: nShieldedSpend=%d nShieldedOutput=%d", ns, no)
+		}
+	}
+
+	js, err := ReadVarInt(r, 0)
+	if err != nil {
+		return err
+	}
+	if js != 0 {
+		return fmt.Errorf("non-transparent sprout joinsplits present: n=%d", js)
+	}
+
+	return nil
+}
+
+func readTxInZec(r io.Reader) (*wire.TxIn, error) {
+	var op wire.OutPoint
+	if _, err := io.ReadFull(r, op.Hash[:]); err != nil {
+		return nil, err
+	}
+	if err := binary.Read(r, binary.LittleEndian, &op.Index); err != nil {
+		return nil, err
+	}
+	sig, err := ReadVarBytes(r, 0, LocalMaxTxInPayload)
+	if err != nil {
+		return nil, err
+	}
+	var seq uint32
+	if err := binary.Read(r, binary.LittleEndian, &seq); err != nil {
+		return nil, err
+	}
+	return &wire.TxIn{
+		PreviousOutPoint: op,
+		SignatureScript:  sig,
+		Sequence:         seq,
+	}, nil
+}
+
+func readTxOutZec(r io.Reader) (*wire.TxOut, error) {
+	var val uint64
+	if err := binary.Read(r, binary.LittleEndian, &val); err != nil {
+		return nil, err
+	}
+	pk, err := ReadVarBytes(r, 0, LocalMaxTxOutPayload)
+	if err != nil {
+		return nil, err
+	}
+	return &wire.TxOut{
+		Value:    int64(val),
+		PkScript: pk,
+	}, nil
+}
+
+const MaxScriptSize = 10000
+
+const (
+	LocalMaxTxInPayload  = MaxScriptSize
+	LocalMaxTxOutPayload = MaxScriptSize
+)
+
+func ReadVarInt(r io.Reader, _ uint32) (uint64, error) {
+	var p [1]byte
+	if _, err := io.ReadFull(r, p[:]); err != nil {
+		return 0, err
+	}
+	switch p[0] {
+	case 0xff:
+		var v uint64
+		if err := binary.Read(r, binary.LittleEndian, &v); err != nil {
+			return 0, err
+		}
+		if v <= 0xffffffff {
+			return 0, fmt.Errorf("non-canonical varint: 0xff for <= 0xffffffff")
+		}
+		return v, nil
+	case 0xfe:
+		var v uint32
+		if err := binary.Read(r, binary.LittleEndian, &v); err != nil {
+			return 0, err
+		}
+		if v <= 0xffff {
+			return 0, fmt.Errorf("non-canonical varint: 0xfe for <= 0xffff")
+		}
+		return uint64(v), nil
+	case 0xfd:
+		var v uint16
+		if err := binary.Read(r, binary.LittleEndian, &v); err != nil {
+			return 0, err
+		}
+		if v < 0xfd {
+			return 0, fmt.Errorf("non-canonical varint: 0xfd for < 0xfd")
+		}
+		return uint64(v), nil
+	default:
+		return uint64(p[0]), nil
+	}
+}
+
+func ReadVarBytes(r io.Reader, pver uint32, max int) ([]byte, error) {
+	l, err := ReadVarInt(r, pver)
+	if err != nil {
+		return nil, err
+	}
+	if l > uint64(max) {
+		return nil, fmt.Errorf("varbytes too large: %d > %d", l, max)
+	}
+	buf := make([]byte, l)
+	if _, err := io.ReadFull(r, buf); err != nil {
+		return nil, err
+	}
+	return buf, nil
 }
