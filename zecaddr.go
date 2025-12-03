@@ -3,9 +3,12 @@ package zecutil
 import (
 	"crypto/sha256"
 	"errors"
+	"strings"
+
 
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/base58"
+	bech32 "github.com/btcsuite/btcd/btcutil/bech32" // tex address
 	"github.com/btcsuite/btcd/chaincfg"
 	"golang.org/x/crypto/ripemd160"
 )
@@ -92,6 +95,11 @@ func DecodeAddress(address string, netName string) (btcutil.Address, error) {
 		return nil, errors.New("unknown net")
 	}
 
+	// add tex address support
+	if strings.HasPrefix(address, "tex1") || strings.HasPrefix(address, "textest1") {
+		return decodeTexAddress(address, netName)
+	}
+
 	var decoded = base58.Decode(address)
 	if len(decoded) != 26 {
 		return nil, base58.ErrInvalidFormat
@@ -121,6 +129,46 @@ func DecodeAddress(address string, netName string) (btcutil.Address, error) {
 
 	return nil, errors.New("unknown address")
 }
+
+// decode tex/textest address
+func decodeTexAddress(address string, netName string) (btcutil.Address, error) {
+	// 1. bech32 decode
+	hrp, data, ver, err := bech32.DecodeGeneric(address)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. must be bech32m
+	if ver != bech32.VersionM {
+		return nil, errors.New("tex address must use bech32m")
+	}
+
+	// 3. verify hrp: mainnet = tex testnet = textest
+	expectedHRP := "tex"
+	if strings.Contains(netName, "test") {
+		expectedHRP = "textest"
+	}
+	if hrp != expectedHRP {
+		return nil, errors.New("invalid tex hrp")
+	}
+
+	// 4. 5bit words -> 8bit bytes（20-byte pkHash）
+	pkh, err := bech32.ConvertBits(data, 5, 8, false)
+	if err != nil {
+		return nil, err
+	}
+	if len(pkh) != ripemd160.Size {
+		return nil, errors.New("invalid tex payload length")
+	}
+
+	// 5.  construct ZecAddressPubKeyHash
+	addr := &ZecAddressPubKeyHash{prefix: netName}
+	copy(addr.hash[:], pkh)
+
+	return addr, nil
+}
+
+
 
 // EncodeAddress returns the string encoding of a pay-to-pubkey-hash
 // address.  Part of the Address interface.
@@ -191,4 +239,33 @@ func addrChecksum(input []byte) (cksum [4]byte) {
 	copy(cksum[:], h2[:4])
 
 	return
+}
+
+// PkHashFromAddress parses a zcash address (t1/t3/tex/textest) and returns
+// the 20-byte hash160 payload (pkHash/scriptHash), reusing DecodeAddress.
+func PkHashFromAddress(address string, net *chaincfg.Params) ([]byte, error) {
+	if net == nil {
+		return nil, errors.New("nil net params")
+	}
+
+	addr, err := DecodeAddress(address, net.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	switch a := addr.(type) {
+	case *ZecAddressPubKeyHash:
+		return a.ScriptAddress(), nil
+	case *ZecAddressScriptHash:
+		return a.ScriptAddress(), nil
+	default:
+		
+		type scriptAddresser interface {
+			ScriptAddress() []byte
+		}
+		if sa, ok := addr.(scriptAddresser); ok {
+			return sa.ScriptAddress(), nil
+		}
+		return nil, errors.New("unsupported address type for pkHash")
+	}
 }
