@@ -1,6 +1,7 @@
 package zecutil
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/btcsuite/btcd/btcutil"
@@ -78,4 +79,53 @@ func TestDecodeTexAndT1SameHash(t *testing.T) {
 	a2 := addr2.(*ZecAddressPubKeyHash)
 
 	require.Equal(t, a1.hash, a2.hash)
+}
+
+
+func TestPkHashFromAddress_T1AndTexSame(t *testing.T) {
+	//（mainnet）
+	t1 := "t1XtsHnj4Ev6CWC3HfJ7Xu3GkEP7SCy8hxV"
+	tex := "tex1n88w7cmg9uzdluuct3krjqlkcxyz8tku8sq40s"
+
+	netParam := &chaincfg.Params{
+		Name: "mainnet",
+	}
+
+	// 1. use PkHashFromAddress for pkHash
+	pkhT1, err := PkHashFromAddress(t1, netParam)
+	if err != nil {
+		t.Fatalf("PkHashFromAddress(t1) error: %v", err)
+	}
+
+	pkhTex, err := PkHashFromAddress(tex, netParam)
+	if err != nil {
+		t.Fatalf("PkHashFromAddress(tex) error: %v", err)
+	}
+
+	if !reflect.DeepEqual(pkhT1, pkhTex) {
+		t.Fatalf("pkHash not equal: t1=%x tex=%x", pkhT1, pkhTex)
+	}
+
+	// 2. use DecodeAddress to check  ScriptAddress
+	addrT1, err := DecodeAddress(t1, netParam.Name)
+	if err != nil {
+		t.Fatalf("DecodeAddress(t1) error: %v", err)
+	}
+	addrTex, err := DecodeAddress(tex, netParam.Name)
+	if err != nil {
+		t.Fatalf("DecodeAddress(tex) error: %v", err)
+	}
+
+	z1, ok1 := addrT1.(*ZecAddressPubKeyHash)
+	if !ok1 {
+		t.Fatalf("DecodeAddress(t1) type = %T, want *ZecAddressPubKeyHash", addrT1)
+	}
+	z2, ok2 := addrTex.(*ZecAddressPubKeyHash)
+	if !ok2 {
+		t.Fatalf("DecodeAddress(tex) type = %T, want *ZecAddressPubKeyHash", addrTex)
+	}
+
+	if !reflect.DeepEqual(z1.ScriptAddress(), z2.ScriptAddress()) {
+		t.Fatalf("ScriptAddress not equal: t1=%x tex=%x", z1.ScriptAddress(), z2.ScriptAddress())
+	}
 }

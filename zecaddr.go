@@ -240,3 +240,32 @@ func addrChecksum(input []byte) (cksum [4]byte) {
 
 	return
 }
+
+// PkHashFromAddress parses a zcash address (t1/t3/tex/textest) and returns
+// the 20-byte hash160 payload (pkHash/scriptHash), reusing DecodeAddress.
+func PkHashFromAddress(address string, net *chaincfg.Params) ([]byte, error) {
+	if net == nil {
+		return nil, errors.New("nil net params")
+	}
+
+	addr, err := DecodeAddress(address, net.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	switch a := addr.(type) {
+	case *ZecAddressPubKeyHash:
+		return a.ScriptAddress(), nil
+	case *ZecAddressScriptHash:
+		return a.ScriptAddress(), nil
+	default:
+		
+		type scriptAddresser interface {
+			ScriptAddress() []byte
+		}
+		if sa, ok := addr.(scriptAddresser); ok {
+			return sa.ScriptAddress(), nil
+		}
+		return nil, errors.New("unsupported address type for pkHash")
+	}
+}
