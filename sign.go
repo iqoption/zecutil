@@ -49,6 +49,7 @@ var upgradeParams = []upgradeParam{
 	{1046400, []byte{0xA6, 0x75, 0xFF, 0xE9}}, // Canopy      0xe9ff75a6
 	{1687104, []byte{0xB4, 0xD0, 0xD6, 0xC2}}, // NU5         0xc2d6d0b4
 	{2726400, []byte{0x55, 0x10, 0xE7, 0xC8}}, // NU6         0xc8e71055
+	{3146400, []byte{0xF0, 0x4D, 0xEC, 0x4D}}, // NU6.1       0x4dec4df0
 }
 
 // RawTxInSignature returns the serialized ECDSA signature for the input idx of
