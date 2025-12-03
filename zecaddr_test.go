@@ -1,8 +1,10 @@
 package zecutil
 
 import (
-	"github.com/btcsuite/btcd/btcutil"
 	"testing"
+
+	"github.com/btcsuite/btcd/btcutil"
+	"github.com/stretchr/testify/require"
 
 	"github.com/btcsuite/btcd/chaincfg"
 )
@@ -60,4 +62,20 @@ func TestDecode(t *testing.T) {
 			t.Fatal("incorrect decode")
 		}
 	}
+}
+
+func TestDecodeTexAndT1SameHash(t *testing.T) {
+	t1 := "t1XtsHnj4Ev6CWC3HfJ7Xu3GkEP7SCy8hxV"
+	tex := "tex1n88w7cmg9uzdluuct3krjqlkcxyz8tku8sq40s"
+
+	addr1, err := DecodeAddress(t1, "mainnet")
+	require.NoError(t, err)
+
+	addr2, err := DecodeAddress(tex, "mainnet")
+	require.NoError(t, err)
+
+	a1 := addr1.(*ZecAddressPubKeyHash)
+	a2 := addr2.(*ZecAddressPubKeyHash)
+
+	require.Equal(t, a1.hash, a2.hash)
 }
